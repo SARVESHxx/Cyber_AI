@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberMind — AI Threat Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #020a0f;
+      --surface: #061218;
+      --border: #0d2d3a;
+      --accent: #00f5c4;
+      --accent2: #ff3c6e;
+      --accent3: #f7b731;
+      --text: #c8e6f0;
+      --muted: #3a6070;
+      --glow: 0 0 20px rgba(0, 245, 196, 0.3);
+      --glow-red: 0 0 20px rgba(255, 60, 110, 0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 245, 196, 0.012) 2px,
+        rgba(0, 245, 196, 0.012) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* Grid background */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,245,196,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,245,196,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+      position: relative;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+    }
+
+    .logo-text {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: 22px;
+      color: var(--accent);
+      text-shadow: var(--glow);
+      letter-spacing: 2px;
+    }
+
+    .logo-sub {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 3px;
+      margin-top: 2px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Hero */
+    .hero {
+      padding: 60px 0 40px;
+      text-align: center;
+    }
+
+    .hero-tag {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 4px;
+      margin-bottom: 16px;
+      opacity: 0.7;
+    }
+
+    .hero h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(28px, 5vw, 52px);
+      font-weight: 900;
+      line-height: 1.1;
+      color: #fff;
+      text-shadow: 0 0 40px rgba(0,245,196,0.2);
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span {
+      color: var(--accent);
+      text-shadow: var(--glow);
+    }
+
+    .hero p {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 540px;
+      margin: 0 auto;
+      line-height: 1.6;
+      font-weight: 300;
+    }
+
+    /* API Key section */
+    .api-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 32px 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .api-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      white-space: nowrap;
+    }
+
+    .api-input {
+      flex: 1;
+      background: rgba(0,245,196,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .api-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0,245,196,0.1);
+    }
+
+    .api-save-btn {
+      padding: 10px 20px;
+      background: rgba(0,245,196,0.1);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+
+    .api-save-btn:hover {
+      background: rgba(0,245,196,0.2);
+      box-shadow: var(--glow);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab:hover { color: var(--text); }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Main grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    @media (max-width: 700px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,245,196,0.03);
+    }
+
+    .panel-title {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 2px;
+    }
+
+    .panel-badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      background: rgba(0,245,196,0.08);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      padding: 18px;
+      resize: none;
+      min-height: 280px;
+    }
+
+    textarea::placeholder { color: var(--muted); opacity: 0.5; }
+
+    /* Presets */
+    .presets {
+      display: flex;
+      gap: 8px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Analyze button */
+    .analyze-wrap {
+      text-align: center;
+      margin: 8px 0 28px;
+    }
+
+    .analyze-btn {
+      position: relative;
+      padding: 16px 60px;
+      background: transparent;
+      border: 2px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 3px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .analyze-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+      z-index: 0;
+    }
+
+    .analyze-btn:hover::before { transform: scaleX(1); }
+    .analyze-btn:hover { color: var(--bg); box-shadow: var(--glow); }
+    .analyze-btn span { position: relative; z-index: 1; }
+    .analyze-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .analyze-btn:disabled::before { display: none; }
+
+    /* Results */
+    .results-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 40px;
+      display: none;
+    }
+
+    .results-panel.visible { display: block; }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,245,196,0.03);
+    }
+
+    .results-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: 2px;
+    }
+
+    .threat-badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 4px;
+      letter-spacing: 2px;
+      font-weight: 700;
+    }
+
+    .threat-critical { background: rgba(255,60,110,0.15); color: var(--accent2); border: 1px solid rgba(255,60,110,0.4); }
+    .threat-high { background: rgba(255,100,50,0.15); color: #ff6432; border: 1px solid rgba(255,100,50,0.4); }
+    .threat-medium { background: rgba(247,183,49,0.15); color: var(--accent3); border: 1px solid rgba(247,183,49,0.4); }
+    .threat-low { background: rgba(0,245,196,0.1); color: var(--accent); border: 1px solid rgba(0,245,196,0.3); }
+    .threat-safe { background: rgba(0,245,196,0.1); color: var(--accent); border: 1px solid rgba(0,245,196,0.3); }
+
+    .results-body {
+      padding: 24px;
+    }
+
+    .results-body pre {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .results-body .section-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 3px;
+      margin: 20px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading.visible { display: block; }
+
+    .loading-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      color: var(--accent);
+      animation: blink 1s step-end infinite;
+      letter-spacing: 2px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .loading-bar {
+      height: 2px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 16px auto;
+      max-width: 300px;
+      overflow: hidden;
+    }
+
+    .loading-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      animation: scan 1.5s ease-in-out infinite;
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    @keyframes scan {
+      0% { width: 0%; margin-left: 0; }
+      50% { width: 60%; margin-left: 20%; }
+      100% { width: 0%; margin-left: 100%; }
+    }
+
+    /* History */
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .history-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .history-card:hover {
+      border-color: var(--accent);
+      box-shadow: var(--glow);
+    }
+
+    .history-card-time {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .history-card-preview {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--text);
+      opacity: 0.7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .error-msg {
+      color: var(--accent2);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      padding: 16px 24px;
+      border-top: 1px solid rgba(255,60,110,0.2);
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0;
+      text-align: center;
+    }
+
+    .footer-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 2px;
+    }
+
+    .footer-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 40 40" fill="none">
+          <polygon points="20,2 38,32 2,32" stroke="#00f5c4" stroke-width="1.5" fill="rgba(0,245,196,0.05)"/>
+          <circle cx="20" cy="22" r="5" stroke="#00f5c4" stroke-width="1.5" fill="none"/>
+          <line x1="20" y1="9" x2="20" y2="17" stroke="#00f5c4" stroke-width="1.5"/>
+        </svg>
+        <div>
+          <div class="logo-text">CYBERMIND</div>
+          <div class="logo-sub">AI THREAT INTELLIGENCE</div>
+        </div>
+      </div>
+      <div class="status-bar">
+        <div class="status-dot"></div>
+        <span>SYSTEM ONLINE</span>
+        <span id="live-time"></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+    <div class="hero">
+      <div class="hero-tag">Sarvesh Lobin </div>
+      <h1>AI-Powered <span>Threat</span><br/>Intelligence Analyzer</h1>
+      <p>Paste logs, IPs, code snippets, or network traffic. Claude analyzes for threats, vulnerabilities, and attack patterns in real time.</p>
+    </div>
+
+    <!-- API Key -->
+    <div class="api-section">
+      <div class="api-label">API_KEY</div>
+      <input type="password" class="api-input" id="apiKey" placeholder="sk-ant-api03-..." />
+      <button class="api-save-btn" onclick="saveKey()">SAVE</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('analyze', this)">ANALYZE</div>
+      <div class="tab" onclick="switchTab('history', this)">HISTORY</div>
+      <div class="tab" onclick="switchTab('about', this)">ABOUT</div>
+    </div>
+
+    <!-- Analyze Tab -->
+    <div id="tab-analyze">
+      <div class="main-grid">
+        <!-- Input -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">INPUT_DATA</div>
+            <div class="panel-badge">PASTE ANYTHING</div>
+          </div>
+          <textarea id="inputData" placeholder="Paste here:
+• Server logs / access logs
+• IP addresses (one per line)
+• Suspicious code or scripts
+• Network packet headers
+• Email headers
+• Hash values
+• CVE descriptions
+• Any security-related data..."></textarea>
+          <div class="presets">
+            <button class="preset-btn" onclick="loadPreset('log')">SAMPLE LOG</button>
+            <button class="preset-btn" onclick="loadPreset('ip')">SAMPLE IPs</button>
+            <button class="preset-btn" onclick="loadPreset('code')">SAMPLE CODE</button>
+            <button class="preset-btn" onclick="loadPreset('hash')">SAMPLE HASH</button>
+          </div>
+        </div>
+
+        <!-- Analysis type -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">ANALYSIS_MODE</div>
+            <div class="panel-badge">SELECT TYPE</div>
+          </div>
+          <div style="padding: 18px;">
+            <div style="display: grid; gap: 10px;">
+              <label class="mode-option" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                <input type="radio" name="mode" value="auto" checked style="accent-color:var(--accent)"/>
+                <div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--accent);">AUTO DETECT</div>
+                  <div style="font-size:13px;color:var(--muted);margin-top:3px;">Automatically identifies data type and runs full analysis</div>
+                </div>
+              </label>
+              <label class="mode-option" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                <input type="radio" name="mode" value="threat" style="accent-color:var(--accent)"/>
+                <div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--accent);">THREAT HUNT</div>
+                  <div style="font-size:13px;color:var(--muted);margin-top:3px;">Focus on IOCs, TTPs, and attacker behavior patterns</div>
+                </div>
+              </label>
+              <label class="mode-option" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                <input type="radio" name="mode" value="code" style="accent-color:var(--accent)"/>
+                <div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--accent);">CODE AUDIT</div>
+                  <div style="font-size:13px;color:var(--muted);margin-top:3px;">OWASP checks, vulnerability detection, CWE mapping</div>
+                </div>
+              </label>
+              <label class="mode-option" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                <input type="radio" name="mode" value="explain" style="accent-color:var(--accent)"/>
+                <div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--accent);">EXPLAIN & EDUCATE</div>
+                  <div style="font-size:13px;color:var(--muted);margin-top:3px;">Break down attack techniques for learning and training</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="analyze-wrap">
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">
+          <span>⟩ RUN ANALYSIS</span>
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading" id="loading">
+        <div class="loading-text">ANALYZING THREAT DATA...</div>
+        <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);margin-top:8px;letter-spacing:2px;">CLAUDE AI PROCESSING</div>
+      </div>
+
+      <!-- Error -->
+      <div class="error-msg" id="errorMsg"></div>
+
+      <!-- Results -->
+      <div class="results-panel" id="results">
+        <div class="results-header">
+          <div class="results-title">// ANALYSIS REPORT</div>
+          <div class="threat-badge" id="threatLevel">SCANNING</div>
+        </div>
+        <div class="results-body">
+          <pre id="resultsText"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Tab -->
+    <div id="tab-history" style="display:none;">
+      <div id="historyGrid" class="history-grid"></div>
+      <div id="historyEmpty" style="text-align:center;padding:60px;font-family:'Share Tech Mono',monospace;color:var(--muted);font-size:13px;letter-spacing:2px;">
+        NO ANALYSIS HISTORY YET
+      </div>
+    </div>
+
+    <!-- About Tab -->
+    <div id="tab-about" style="display:none;">
+      <div class="panel" style="padding:32px;">
+        <div class="section-title">ABOUT THIS PROJECT</div>
+        <p style="font-size:16px;line-height:1.8;color:var(--text);margin-bottom:20px;">
+          CyberMind is an open-source AI-powered threat intelligence tool.
+          It helps security analysts, students, and researchers quickly triage and understand security data.
+        </p>
+        <div class="section-title">WHAT IT ANALYZES</div>
+        <ul style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);list-style:none;line-height:2.2;">
+          <li>⟩ Server & access logs (Apache, Nginx, AWS, etc.)</li>
+          <li>⟩ IP reputation & geolocation context</li>
+          <li>⟩ Source code — OWASP Top 10, SQL injection, XSS, RCE</li>
+          <li>⟩ File hashes — context and known malware patterns</li>
+          <li>⟩ Email headers — phishing and spoofing detection</li>
+          <li>⟩ Network traffic patterns</li>
+          <li>⟩ CVE descriptions and severity assessment</li>
+        </ul>
+        <div class="section-title">TECH STACK</div>
+        <ul style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);list-style:none;line-height:2.2;">
+          <li>⟩ Frontend: Vanilla HTML/CSS/JS (no frameworks needed)</li>
+          <li>⟩ AI: Anthropic Claude API (claude-sonnet-4-20250514)</li>
+          <li>⟩ Storage: localStorage for history</li>
+          <li>⟩ Fonts: Google Fonts (Orbitron, Rajdhani, Share Tech Mono)</li>
+        </ul>
+        <div class="section-title">DISCLAIMER</div>
+        <p style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;">
+          This tool is for educational and defensive security purposes only.
+          AI analysis should be used as a supplement, not a replacement, for proper security tools and expert review.
+          Never paste sensitive production data or credentials.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-text">
+      CYBERMIND v1.0 — Owner <a href="https://anthropic.com" target="_blank">Sarvesh Lobin</a> — OPEN SOURCE ON GITHUB
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Live clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('live-time').textContent =
+      now.toUTCString().slice(17, 25) + ' UTC';
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // API Key
+  const keyInput = document.getElementById('apiKey');
+  const savedKey = localStorage.getItem('cm_apikey');
+  if (savedKey) keyInput.value = savedKey;
+
+  function saveKey() {
+    localStorage.setItem('cm_apikey', keyInput.value.trim());
+    keyInput.style.borderColor = 'var(--accent)';
+    setTimeout(() => keyInput.style.borderColor = '', 1000);
+  }
+
+  // Tabs
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    ['analyze','history','about'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+    });
+    if (name === 'history') renderHistory();
+  }
+
+  // Presets
+  const presets = {
+    log: `192.168.1.105 - - [15/Apr/2025:03:22:11 +0000] "GET /admin/config.php HTTP/1.1" 200 4521
+10.0.0.23 - - [15/Apr/2025:03:22:15 +0000] "POST /login.php HTTP/1.1" 401 532
+185.220.101.47 - - [15/Apr/2025:03:22:18 +0000] "GET /../../../etc/passwd HTTP/1.1" 400 217
+185.220.101.47 - - [15/Apr/2025:03:22:19 +0000] "GET /wp-admin/setup-config.php HTTP/1.1" 404 196
+185.220.101.47 - - [15/Apr/2025:03:22:20 +0000] "GET /phpmyadmin/ HTTP/1.1" 404 196
+192.168.1.105 - - [15/Apr/2025:03:22:45 +0000] "POST /upload.php HTTP/1.1" 200 8821`,
+
+    ip: `185.220.101.47
+45.33.32.156
+104.21.14.200
+198.51.100.255
+8.8.8.8
+192.168.1.1
+10.0.0.1
+185.156.73.54
+91.108.4.0
+194.165.16.11`,
+
+    code: `<?php
+$user_input = $_GET['id'];
+$query = "SELECT * FROM users WHERE id = " . $user_input;
+$result = mysqli_query($conn, $query);
+echo "<h1>Welcome " . $_GET['name'] . "</h1>";
+$file = $_POST['filename'];
+include($file);
+?>`,
+
+    hash: `MD5:  d41d8cd98f00b204e9800998ecf8427e
+SHA1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+SHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Filename: invoice_march2025.exe
+Size: 2.4MB
+VirusTotal detections: 34/72`
+  };
+
+  function loadPreset(type) {
+    document.getElementById('inputData').value = presets[type];
+  }
+
+  // Analyze
+  async function analyze() {
+    const apiKey = (localStorage.getItem('cm_apikey') || '').trim();
+    const inputData = document.getElementById('inputData').value.trim();
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+
+    if (!apiKey) {
+      showError('Please enter your Anthropic API key above.');
+      return;
+    }
+    if (!inputData) {
+      showError('Please paste some data to analyze.');
+      return;
+    }
+
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('errorMsg').classList.remove('visible');
+    document.getElementById('loading').classList.add('visible');
+
+    const systemPrompts = {
+      auto: `You are CyberMind, an expert cybersecurity AI analyst. Analyze the provided data and:
+1. Identify what type of data it is
+2. Assess the overall threat level: CRITICAL / HIGH / MEDIUM / LOW / SAFE
+3. List specific threats, IOCs (Indicators of Compromise), or vulnerabilities found
+4. Explain what each threat means in plain language
+5. Provide actionable remediation steps
+6. Reference relevant CVEs, MITRE ATT&CK techniques, or OWASP items where applicable
+
+Format your response with clear sections using labels like:
+[THREAT LEVEL] [DATA TYPE] [FINDINGS] [IOCs] [MITRE ATT&CK] [REMEDIATION] [SUMMARY]`,
+
+      threat: `You are a threat intelligence analyst. Focus on:
+- Indicators of Compromise (IPs, domains, hashes, patterns)
+- MITRE ATT&CK TTPs (Tactics, Techniques, Procedures)
+- Threat actor behavior patterns
+- Kill chain phase identification
+- Threat severity: CRITICAL / HIGH / MEDIUM / LOW
+Format with sections: [THREAT LEVEL] [IOCs FOUND] [ATT&CK MAPPING] [THREAT ACTOR PROFILE] [RECOMMENDED ACTIONS]`,
+
+      code: `You are a secure code review expert. Analyze for:
+- OWASP Top 10 vulnerabilities
+- CWE classifications
+- Injection flaws (SQL, XSS, command, LDAP, etc.)
+- Insecure functions or patterns
+- Authentication/authorization issues
+- Data exposure risks
+Rate severity: CRITICAL / HIGH / MEDIUM / LOW / SAFE
+Format with sections: [THREAT LEVEL] [VULNERABILITIES] [CWE REFERENCES] [OWASP MAPPING] [SECURE CODE FIX] [RECOMMENDATIONS]`,
+
+      explain: `You are a cybersecurity educator. For the given data:
+- Explain what it is and why it matters
+- Describe the attack techniques involved in simple terms
+- Map to real-world attack scenarios
+- Explain defender perspective
+- Give learning resources or concepts to study
+Make it educational but accurate. Threat level: CRITICAL / HIGH / MEDIUM / LOW / SAFE
+Format with sections: [THREAT LEVEL] [WHAT IS THIS] [ATTACK EXPLAINED] [DEFENDER VIEW] [LEARN MORE]`
+    };
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1500,
+          system: systemPrompts[mode],
+          messages: [{ role: 'user', content: `Analyze this security data:\n\n${inputData}` }]
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || `API error: ${response.status}`);
+      }
+
+      const text = data.content.map(b => b.text || '').join('\n');
+      showResults(text, inputData);
+
+    } catch (err) {
+      showError('Error: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      document.getElementById('loading').classList.remove('visible');
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '⚠ ' + msg;
+    el.classList.add('visible');
+  }
+
+  function showResults(text, input) {
+    // Detect threat level from response
+    let level = 'UNKNOWN';
+    let levelClass = 'threat-low';
+    const upper = text.toUpperCase();
+    if (upper.includes('[THREAT LEVEL] CRITICAL') || upper.includes('THREAT LEVEL: CRITICAL') || upper.includes('**CRITICAL**')) {
+      level = 'CRITICAL'; levelClass = 'threat-critical';
+    } else if (upper.includes('HIGH')) {
+      level = 'HIGH'; levelClass = 'threat-high';
+    } else if (upper.includes('MEDIUM')) {
+      level = 'MEDIUM'; levelClass = 'threat-medium';
+    } else if (upper.includes('LOW') || upper.includes('SAFE')) {
+      level = 'LOW / SAFE'; levelClass = 'threat-safe';
+    }
+
+    document.getElementById('threatLevel').textContent = level;
+    document.getElementById('threatLevel').className = 'threat-badge ' + levelClass;
+    document.getElementById('resultsText').textContent = text;
+    document.getElementById('results').classList.add('visible');
+
+    // Save to history
+    const history = JSON.parse(localStorage.getItem('cm_history') || '[]');
+    history.unshift({
+      time: new Date().toISOString(),
+      input: input.slice(0, 120),
+      result: text,
+      level
+    });
+    if (history.length > 20) history.pop();
+    localStorage.setItem('cm_history', JSON.stringify(history));
+  }
+
+  // History
+  function renderHistory() {
+    const history = JSON.parse(localStorage.getItem('cm_history') || '[]');
+    const grid = document.getElementById('historyGrid');
+    const empty = document.getElementById('historyEmpty');
+
+    if (!history.length) {
+      grid.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+
+    grid.style.display = 'grid';
+    empty.style.display = 'none';
+    grid.innerHTML = history.map((h, i) => `
+      <div class="history-card" onclick="viewHistory(${i})">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="history-card-time">${new Date(h.time).toLocaleString()}</div>
+          <span class="threat-badge ${h.level === 'CRITICAL' ? 'threat-critical' : h.level === 'HIGH' ? 'threat-high' : h.level === 'MEDIUM' ? 'threat-medium' : 'threat-safe'}" style="font-size:9px;padding:2px 8px;">${h.level}</span>
+        </div>
+        <div class="history-card-preview">${h.input}...</div>
+      </div>
+    `).join('');
+  }
+
+  function viewHistory(i) {
+    const history = JSON.parse(localStorage.getItem('cm_history') || '[]');
+    const h = history[i];
+    switchTab('analyze', document.querySelectorAll('.tab')[0]);
+    document.getElementById('inputData').value = h.input;
+    showResults(h.result, h.input);
+  }
+</script>
+</body>
+</html>
